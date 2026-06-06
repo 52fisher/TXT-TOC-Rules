@@ -890,7 +890,7 @@ NO.3 大写NO
 
     async function loadDefaultRules() {
       try {
-        const response = await fetch('myTxtChapterRule.json');
+        const response = await fetch('../myTxtChapterRule.json');
         if (!response.ok) {
           throw new Error('Failed to load JSON file');
         }
