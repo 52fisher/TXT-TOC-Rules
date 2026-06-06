@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>目录规则调试工具</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <style>
     * {
       margin: 0;
@@ -1437,39 +1438,45 @@ NO.3 大写NO
       const blob = file.slice(0, 30 * 1024);
       
       reader.onload = function(e) {
-        // 尝试检测并转换编码
-        let content = e.target.result;
+        const uint8Array = new Uint8Array(e.target.result);
+        let content = '';
+        let encodingUsed = 'UTF-8';
         
-        // 检测是否为乱码（GBK文件被当作UTF-8读取时的特征）
-        const hasGarbled = /[\ufffd\u0000-\u001f\u007f-\u009f]/.test(content) || 
-                           // 常见GBK乱码特征
-                           /[娴欐睙鍒皚鍒版槸鍦ㄧ殑]/.test(content) ||
-                           // 检测大量连续高位字符（乱码特征）
-                           /[\u0080-\u00ff]{3,}/.test(content);
-        
-        if (hasGarbled) {
-          // 尝试用GBK解码
-          try {
-            const decoder = new TextDecoder('gbk');
-            // 重新以ArrayBuffer方式读取
-            const arrayReader = new FileReader();
-            arrayReader.onload = function(e) {
-              const uint8Array = new Uint8Array(e.target.result);
+        try {
+          // 第一步：检测BOM头
+          const encoding = detectEncodingFromBOM(uint8Array);
+          
+          if (encoding) {
+            // 有BOM头，使用对应编码解码
+            const decoder = new TextDecoder(encoding);
+            content = decoder.decode(uint8Array);
+            encodingUsed = encoding;
+          } else {
+            // 第二步：没有BOM头，通过二进制特征检测
+            if (isLikelyGBK(uint8Array)) {
+              // 尝试用GBK解码
+              try {
+                const decoder = new TextDecoder('gbk');
+                content = decoder.decode(uint8Array);
+                encodingUsed = 'GBK';
+              } catch (err) {
+                console.warn('GBK解码失败，尝试UTF-8');
+                const decoder = new TextDecoder('utf-8');
+                content = decoder.decode(uint8Array);
+              }
+            } else {
+              // 默认用UTF-8解码
+              const decoder = new TextDecoder('utf-8');
               content = decoder.decode(uint8Array);
-              txtContent = content;
-              txtFileName = file.name + ' (前30KB)';
-              document.getElementById('txtFileName').textContent = txtFileName;
-              document.getElementById('txtStatus').style.display = 'block';
-              document.getElementById('txtRadio').disabled = false;
-              localStorage.setItem('txtChapterTxtContent', txtContent);
-              localStorage.setItem('txtChapterTxtFileName', txtFileName);
-              showToast('TXT导入成功（已转GBK编码）');
-            };
-            arrayReader.readAsArrayBuffer(blob);
-            event.target.value = '';
-            return;
-          } catch (err) {
-            console.warn('GBK编码转换失败，使用原始内容');
+            }
+          }
+        } catch (error) {
+          console.error('解码失败，使用默认UTF-8:', error);
+          try {
+            const decoder = new TextDecoder('utf-8');
+            content = decoder.decode(uint8Array);
+          } catch (fallbackError) {
+            content = '无法解码文件';
           }
         }
         
@@ -1483,11 +1490,101 @@ NO.3 大写NO
         localStorage.setItem('txtChapterTxtContent', txtContent);
         localStorage.setItem('txtChapterTxtFileName', txtFileName);
         
-        showToast('TXT导入成功（已截取前30KB）');
+        showToast(`TXT导入成功（编码: ${encodingUsed}）`);
       };
       
-      reader.readAsText(blob);
+      reader.readAsArrayBuffer(blob);
       event.target.value = '';
+    }
+    
+    // 从BOM头检测编码
+    function detectEncodingFromBOM(uint8Array) {
+      if (uint8Array.length >= 3) {
+        if (uint8Array[0] === 0xEF && uint8Array[1] === 0xBB && uint8Array[2] === 0xBF) {
+          return 'utf-8';
+        }
+      }
+      if (uint8Array.length >= 2) {
+        if (uint8Array[0] === 0xFF && uint8Array[1] === 0xFE) {
+          return 'utf-16le';
+        }
+        if (uint8Array[0] === 0xFE && uint8Array[1] === 0xFF) {
+          return 'utf-16be';
+        }
+      }
+      if (uint8Array.length >= 4) {
+        if (uint8Array[0] === 0xFF && uint8Array[1] === 0xFE && uint8Array[2] === 0x00 && uint8Array[3] === 0x00) {
+          return 'utf-32le';
+        }
+        if (uint8Array[0] === 0x00 && uint8Array[1] === 0x00 && uint8Array[2] === 0xFE && uint8Array[3] === 0xFF) {
+          return 'utf-32be';
+        }
+      }
+      return null;
+    }
+    
+    // 通过二进制特征检测是否为GBK编码
+    function isLikelyGBK(uint8Array) {
+      let gbkCount = 0;
+      let utf8Count = 0;
+      let i = 0;
+      
+      while (i < uint8Array.length) {
+        const byte = uint8Array[i];
+        
+        if (byte < 0x80) {
+          // ASCII字符，两者都可能
+          i++;
+        } else if (byte >= 0xC0 && byte < 0xE0) {
+          // UTF-8 2字节序列
+          if (i + 1 < uint8Array.length) {
+            const nextByte = uint8Array[i + 1];
+            if (nextByte >= 0x80 && nextByte < 0xC0) {
+              utf8Count++;
+              i += 2;
+            } else {
+              i++;
+            }
+          } else {
+            i++;
+          }
+        } else if (byte >= 0xE0 && byte < 0xF0) {
+          // UTF-8 3字节序列（中文）
+          if (i + 2 < uint8Array.length) {
+            const byte2 = uint8Array[i + 1];
+            const byte3 = uint8Array[i + 2];
+            if (byte2 >= 0x80 && byte2 < 0xC0 && byte3 >= 0x80 && byte3 < 0xC0) {
+              utf8Count++;
+              i += 3;
+            } else {
+              i++;
+            }
+          } else {
+            i++;
+          }
+        } else if (byte >= 0xA1 && byte <= 0xA9) {
+          // GBK 常用标点符号
+          gbkCount++;
+          i += 2;
+        } else if (byte >= 0xB0 && byte <= 0xF7) {
+          // GBK 常用汉字
+          gbkCount++;
+          i += 2;
+        } else if (byte >= 0x81 && byte <= 0xA0) {
+          // GBK 部分汉字
+          gbkCount++;
+          i += 2;
+        } else if (byte >= 0xF8 && byte <= 0xFE) {
+          // GBK 其他汉字
+          gbkCount++;
+          i += 2;
+        } else {
+          i++;
+        }
+      }
+      
+      // 如果检测到的GBK特征比UTF-8特征多，认为是GBK编码
+      return gbkCount > utf8Count && gbkCount > 0;
     }
 
     function clearTxtFile() {

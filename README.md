@@ -1,13 +1,14 @@
-# TXT-TOC-Rules
+# YueDuJson
 
 ## 简介
-为TXT小说分章规则提供常用目录的正则表达式。
+为 阅读 APP提供常用目录的正则表达式。
 
 目录规则已基本完善，重大更新时更新。
 
+替换规则严重影响阅读性能，暂不考虑。
 
 ## 调试工具
-项目提供 `debug-tool.html` 调试工具，用于：
+项目提供 `docs/index.html` 调试工具，用于：
 - 可视化编辑和管理目录规则
 - 拖拽排序规则
 - 测试正则表达式匹配效果
@@ -15,7 +16,7 @@
 - 导入/导出JSON规则文件
 
 ### 使用方法
-1. 在浏览器中打开 `debug-tool.html`
+1. 在浏览器中打开 `docs/index.html`
 2. 在左侧规则列表中编辑规则
 3. 点击「调试」按钮在右侧查看测试结果
 4. 支持切换「内置测试数据」或「导入的TXT小说」进行测试
@@ -35,8 +36,17 @@
 目录规则
 [ChapterRule](https://raw.githubusercontent.com/52fisher/YueDuJson/master/myTxtChapterRule.json)
 
+替换规则
+[ReplaceRule](https://raw.githubusercontent.com/52fisher/YueDuJson/master/myBookReplaceRule.json)
 
 ## 更新日志
+
+### 2026-06-07
+- 创建favicon.svg图标并添加到页面
+- 修复TXT导入错误：`event.files` → `event.target.files`
+- 重写TXT编码检测逻辑：使用BOM头检测+二进制特征分析
+- 支持UTF-8/UTF-16/UTF-32/GBK编码自动识别
+- 修复乱码检测正则，排除换行符\n和回车符\r
 
 ### 2026-06-07
 - 修复 `deleteRule` 函数删除规则后序号不连续问题
