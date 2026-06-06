@@ -1,0 +1,36 @@
+name: Deploy GitHub Pages
+
+# 触发条件：推送到主分支（可根据实际分支名调整）、PR合并到主分支
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. 检出代码到工作目录
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. 复制根目录的 myTxtChapterRule.json 到 docs 目录（与 index.html 同路径）
+      - name: Copy JSON file to docs directory
+        run: |
+          cp myTxtChapterRule.json docs/
+          # 可选：验证复制是否成功（输出 docs 目录文件列表）
+          ls -la docs/
+
+      # 3. 部署 GitHub Pages（使用官方推荐的部署动作）
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          # GitHub Pages 部署的源目录：docs
+          publish_dir: ./docs
+          # GitHub Token（自动生成，无需手动配置）
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # 部署到 gh-pages 分支（GitHub Pages 默认分支）
+          publish_branch: gh-pages
+          # 保留历史记录（可选，设为 false 则每次覆盖）
+          keep_files: false
