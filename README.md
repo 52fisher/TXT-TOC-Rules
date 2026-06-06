@@ -1,11 +1,10 @@
-# YueDuJson
+# TXT-TOC-Rules
 
 ## 简介
-为 阅读 APP提供常用目录的正则表达式。
+为TXT小说分章规则提供常用目录的正则表达式。
 
 目录规则已基本完善，重大更新时更新。
 
-替换规则严重影响阅读性能，暂不考虑。
 
 ## 调试工具
 项目提供 `debug-tool.html` 调试工具，用于：
@@ -36,8 +35,6 @@
 目录规则
 [ChapterRule](https://raw.githubusercontent.com/52fisher/YueDuJson/master/myTxtChapterRule.json)
 
-替换规则
-[ReplaceRule](https://raw.githubusercontent.com/52fisher/YueDuJson/master/myBookReplaceRule.json)
 
 ## 更新日志
 
